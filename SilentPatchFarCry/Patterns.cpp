@@ -45,12 +45,9 @@ typedef basic_fnv_1<fnv_prime, fnv_offset_basis> fnv_1;
 
 namespace hook
 {
-	ptrdiff_t baseAddressDifference;
-
-	// sets the base to the process main base
-	void set_base()
+	ptrdiff_t pattern::get_process_base()
 	{
-		set_base((uintptr_t)GetModuleHandle(nullptr));
+		return ptrdiff_t(GetModuleHandle(nullptr));
 	}
 
 
@@ -112,13 +109,13 @@ private:
 	uintptr_t m_begin;
 	uintptr_t m_end;
 
-public:
 	template<typename TReturn, typename TOffset>
 	TReturn* getRVA(TOffset rva)
 	{
 		return (TReturn*)(m_begin + rva);
 	}
 
+public:
 	explicit executable_meta(uintptr_t module)
 		: m_begin(module)
 	{
