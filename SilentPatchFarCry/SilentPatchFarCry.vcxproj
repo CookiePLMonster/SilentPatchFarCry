@@ -149,7 +149,9 @@
     <ClCompile Include="SilentPatchFarCry.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MemoryMgr.h" />
     <ClInclude Include="Patterns.h" />
+    <ClInclude Include="Trampoline.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
