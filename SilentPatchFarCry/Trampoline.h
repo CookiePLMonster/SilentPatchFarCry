@@ -29,54 +29,30 @@ public:
 		return IsAddressFeasible( (uintptr_t)m_pageMemory, addr ) && ( m_pageUsed + SINGLE_TRAMPOLINE_SIZE ) <= m_pageSize;
 	}
 
-	template<typename AT, typename Func>
-	void InjectHook(AT address, Func hook)
+	template<typename Func>
+	LPVOID Jump( Func func )
 	{
-		assert( FeasibleForAddresss(uintptr_t(address)) );
-
 		union member_cast
 		{
-			intptr_t addr;
+			LPVOID addr;
 			Func funcPtr;
 		} cast;
 		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
 
-		cast.funcPtr = hook;
-		LPVOID trampoline = CreateTrampoline( cast.addr );
-
-		// Jump to trampoline
-		Memory::VP::InjectHook( address, trampoline );
-	}
-
-	template<typename AT, typename HT>
-	inline void		InjectHook(AT address, HT hook, unsigned int nType)
-	{
-		assert( FeasibleForAddresss(uintptr_t(address)) );
-
-		union member_cast
-		{
-			intptr_t addr;
-			Func funcPtr;
-		} cast;
-		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
-
-		cast.funcPtr = hook;
-		LPVOID trampoline = CreateTrampoline( cast.addr );
-
-		// Jump to trampoline
-		Memory::VP::InjectHook( address, trampoline, nType );
+		cast.funcPtr = func;
+		return CreateTrampoline( cast.addr );
 	}
 
 private:
 	static constexpr size_t SINGLE_TRAMPOLINE_SIZE = 12;
 
-	LPVOID CreateTrampoline( intptr_t addr )
+	LPVOID CreateTrampoline( LPVOID addr )
 	{
 		LPVOID trampolineSpace = GetNewSpace();
 
 		// Create trampoline code
 		Memory::Patch( trampolineSpace, { 0x48, 0xB8 } );
-		Memory::Patch<intptr_t>( static_cast<uint8_t*>(trampolineSpace) + 2, addr );
+		Memory::Patch( static_cast<uint8_t*>(trampolineSpace) + 2, addr );
 		Memory::Patch( static_cast<uint8_t*>(trampolineSpace) + 10, { 0xFF, 0xE0 } );
 
 		return trampolineSpace;
@@ -132,16 +108,10 @@ private:
 
 	constexpr bool FeasibleForAddresss( uintptr_t ) const { return true; }
 
-	template<typename AT, typename Func>
-	void InjectHook(AT address, Func hook)
+	template<typename Func>
+	constexpr Func Jump( Func func )
 	{
-		Memory::VP::InjectHook( address, hook );
-	}
-
-	template<typename AT, typename HT>
-	inline void		InjectHook(AT address, HT hook, unsigned int nType)
-	{
-		Memory::VP::InjectHook( address, hook, nType );
+		return func;
 	}
 
 #endif
@@ -153,7 +123,14 @@ public:
 
 // Trampolines are useless on x86 arch
 #ifdef _WIN64
+	template<typename T>
+	Trampoline& MakeTrampoline( T addr )
+	{
+		return MakeTrampoline( uintptr_t(addr) );
+	}
 
+
+private:
 	Trampoline& MakeTrampoline( uintptr_t addr )
 	{
 		for ( auto& it : m_trampolines )
@@ -163,12 +140,12 @@ public:
 		return m_trampolines.emplace_front( addr );
 	}
 
-private:
 	std::forward_list<Trampoline> m_trampolines;
 
 #else
 
-	Trampoline& MakeTrampoline( uintptr_t )
+	template<typename T>
+	Trampoline& MakeTrampoline( T )
 	{
 		static Trampoline dummy;
 		return dummy;
