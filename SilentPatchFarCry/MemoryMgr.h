@@ -64,17 +64,18 @@ namespace Memory
 	} while ( --count != 0 ); }
 #endif
 
-	template<typename AT, typename HT>
-	inline void		InjectHook(AT address, HT hook)
+	template<typename AT, typename Func>
+	inline void		InjectHook(AT address, Func hook)
 	{
-		intptr_t		dwHook;
-		_asm
+		union member_cast
 		{
-			mov		eax, hook
-			mov		dwHook, eax
-		}
+			intptr_t addr;
+			Func funcPtr;
+		} cast;
+		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
 
-		*(ptrdiff_t*)((intptr_t)address + 1) = dwHook - (intptr_t)address - 5;
+		cast.funcPtr = hook;
+		*(ptrdiff_t*)((intptr_t)address + 1) = cast.addr - (intptr_t)address - 5;
 	}
 
 	template<typename AT, typename HT>
@@ -95,7 +96,15 @@ namespace Memory
 	template<typename Func, typename AT>
 	inline void		ReadCall(AT address, Func& func)
 	{
-		func = Func(*(ptrdiff_t*)((intptr_t)address+1) + (intptr_t)address + 5);
+		union member_cast
+		{
+			intptr_t addr;
+			Func funcPtr;
+		} cast;
+		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
+
+		cast.addr = *(ptrdiff_t*)((intptr_t)address+1) + (intptr_t)address + 5;
+		func = cast.funcPtr;
 	}
 
 	template<typename AT>
@@ -217,9 +226,9 @@ namespace Memory
 		{
 			DWORD		dwProtect[2];
 
-			VirtualProtect((void*)((DWORD)address + 1), 4, PAGE_EXECUTE_READWRITE, &dwProtect[0]);
+			VirtualProtect((void*)((DWORD_PTR)address + 1), 4, PAGE_EXECUTE_READWRITE, &dwProtect[0]);
 			Memory::InjectHook( address, hook );
-			VirtualProtect((void*)((DWORD)address + 1), 4, dwProtect[0], &dwProtect[1]);
+			VirtualProtect((void*)((DWORD_PTR)address + 1), 4, dwProtect[0], &dwProtect[1]);
 		}
 
 		template<typename AT, typename HT>

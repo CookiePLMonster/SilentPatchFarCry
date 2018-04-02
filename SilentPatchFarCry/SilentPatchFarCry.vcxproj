@@ -144,6 +144,7 @@
     <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="D3D9Hook.cpp" />
     <ClCompile Include="Patterns.cpp" />
     <ClCompile Include="SilentPatchFarCry.cpp" />
   </ItemGroup>
