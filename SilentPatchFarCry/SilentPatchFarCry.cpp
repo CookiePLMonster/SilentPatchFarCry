@@ -6,6 +6,9 @@
 
 #include <windows.h>
 
+#include "Patterns.h"
+#include "MemoryMgr.h"
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	UNREFERENCED_PARAMETER(hinstDLL);

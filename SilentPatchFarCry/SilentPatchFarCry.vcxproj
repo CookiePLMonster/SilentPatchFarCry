@@ -144,7 +144,11 @@
     <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Patterns.cpp" />
     <ClCompile Include="SilentPatchFarCry.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Patterns.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
