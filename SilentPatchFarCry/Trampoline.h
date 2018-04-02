@@ -11,6 +11,8 @@ class Trampoline
 public:
 	constexpr Trampoline() = default;
 
+	Trampoline( const Trampoline& ) = delete;
+
 // Trampolines are useless on x86 arch
 #ifdef _WIN64
 
@@ -140,6 +142,36 @@ private:
 	inline void		InjectHook(AT address, HT hook, unsigned int nType)
 	{
 		Memory::VP::InjectHook( address, hook, nType );
+	}
+
+#endif
+};
+
+class TrampolineMgr
+{
+public:
+
+// Trampolines are useless on x86 arch
+#ifdef _WIN64
+
+	Trampoline& MakeTrampoline( uintptr_t addr )
+	{
+		for ( auto& it : m_trampolines )
+		{
+			if ( it.FeasibleForAddresss( addr ) ) return it;
+		}
+		return m_trampolines.emplace_front( addr );
+	}
+
+private:
+	std::forward_list<Trampoline> m_trampolines;
+
+#else
+
+	Trampoline& MakeTrampoline( uintptr_t )
+	{
+		static Trampoline dummy;
+		return dummy;
 	}
 
 #endif
