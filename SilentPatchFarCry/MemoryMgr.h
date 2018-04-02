@@ -73,24 +73,16 @@ namespace Memory
 			Func funcPtr;
 		} cast;
 		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
-
 		cast.funcPtr = hook;
-		*(ptrdiff_t*)((intptr_t)address + 1) = cast.addr - (intptr_t)address - 5;
+
+		*(int32_t*)((intptr_t)address + 1) = static_cast<int32_t>(cast.addr - (intptr_t)address - 5);
 	}
 
-	template<typename AT, typename HT>
-	inline void		InjectHook(AT address, HT hook, unsigned int nType)
+	template<typename AT, typename Func>
+	inline void		InjectHook(AT address, Func hook, unsigned int nType)
 	{
-		intptr_t		dwHook;
-		_asm
-		{
-			mov		eax, hook
-			mov		dwHook, eax
-		}
-
 		*(uint8_t*)address = nType == PATCH_JUMP ? 0xE9 : 0xE8;
-
-		*(ptrdiff_t*)((intptr_t)address + 1) = dwHook - (intptr_t)address - 5;
+		InjectHook(address, hook);
 	}
 
 	template<typename Func, typename AT>
@@ -103,7 +95,7 @@ namespace Memory
 		} cast;
 		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
 
-		cast.addr = *(ptrdiff_t*)((intptr_t)address+1) + (intptr_t)address + 5;
+		cast.addr = (intptr_t)address + 5 + *(int32_t*)((intptr_t)address+1);
 		func = cast.funcPtr;
 	}
 
