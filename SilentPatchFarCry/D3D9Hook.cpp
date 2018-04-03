@@ -340,6 +340,12 @@ HRESULT FCDirect3DDevice9::SetClipStatus(CONST D3DCLIPSTATUS9 *pClipStatus)
 
 HRESULT FCDirect3DDevice9::SetRenderState(D3DRENDERSTATETYPE State, DWORD Value)
 {
+	// ======= FAR CRY FIX =======
+	if ( State == D3DRS_CLIPPLANEENABLE )
+	{
+		m_clipPlaneRenderState = Value;
+	}
+
 	return m_direct3DDevice9->SetRenderState(State, Value);
 }
 
@@ -456,21 +462,33 @@ HRESULT FCDirect3DDevice9::SetPixelShader(IDirect3DPixelShader9* pShader)
 
 HRESULT FCDirect3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE Type, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
 {
+	// ======= FAR CRY FIX =======
+	ApplyClipPlanes();
+
 	return m_direct3DDevice9->DrawIndexedPrimitive(Type, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
 }
 
 HRESULT FCDirect3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinIndex, UINT NumVertices, UINT PrimitiveCount, CONST void *pIndexData, D3DFORMAT IndexDataFormat, CONST void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
+	// ======= FAR CRY FIX =======
+	ApplyClipPlanes();
+
 	return m_direct3DDevice9->DrawIndexedPrimitiveUP(PrimitiveType, MinIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 
 HRESULT FCDirect3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
+	// ======= FAR CRY FIX =======
+	ApplyClipPlanes();
+
 	return m_direct3DDevice9->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 
 HRESULT FCDirect3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, CONST void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
+	// ======= FAR CRY FIX =======
+	ApplyClipPlanes();
+
 	return m_direct3DDevice9->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 
@@ -531,12 +549,20 @@ HRESULT FCDirect3DDevice9::ValidateDevice(DWORD *pNumPasses)
 
 HRESULT FCDirect3DDevice9::GetClipPlane(DWORD Index, float *pPlane)
 {
-	return m_direct3DDevice9->GetClipPlane(Index, pPlane);
+	// ======= FAR CRY FIX =======
+	if ( pPlane == nullptr || Index >= MAX_CLIP_PLANES ) return D3DERR_INVALIDCALL;
+
+	memcpy( pPlane, m_storedClipPlanes[Index], sizeof(m_storedClipPlanes[0]) );
+	return D3D_OK;
 }
 
 HRESULT FCDirect3DDevice9::SetClipPlane(DWORD Index, CONST float *pPlane)
 {
-	return m_direct3DDevice9->SetClipPlane(Index, pPlane);
+	// ======= FAR CRY FIX =======
+	if ( pPlane == nullptr || Index >= MAX_CLIP_PLANES ) return D3DERR_INVALIDCALL;
+
+	memcpy( m_storedClipPlanes[Index], pPlane, sizeof(m_storedClipPlanes[0]) );
+	return D3D_OK;
 }
 
 HRESULT FCDirect3DDevice9::Clear(DWORD Count, CONST D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
@@ -742,4 +768,18 @@ HRESULT FCDirect3DDevice9::GetRenderTargetData(IDirect3DSurface9* pRenderTarget,
 HRESULT FCDirect3DDevice9::UpdateSurface(IDirect3DSurface9* pSourceSurface, CONST RECT* pSourceRect, IDirect3DSurface9* pDestinationSurface, CONST POINT* pDestPoint)
 {
 	return m_direct3DDevice9->UpdateSurface(pSourceSurface, pSourceRect, pDestinationSurface, pDestPoint);
+}
+
+// ======= FAR CRY FIX =======
+void FCDirect3DDevice9::ApplyClipPlanes()
+{
+	DWORD index = 0;
+	for( const auto clipPlane : m_storedClipPlanes )
+	{
+		if ( (m_clipPlaneRenderState & (1 << index)) != 0 )
+		{
+			m_direct3DDevice9->SetClipPlane( index, clipPlane );
+		}
+		index++;
+	}
 }

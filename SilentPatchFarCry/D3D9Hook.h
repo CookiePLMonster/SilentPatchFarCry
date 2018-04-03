@@ -179,4 +179,11 @@ private:
 	LONG m_refCount = 1;
 	IDirect3DDevice9* m_direct3DDevice9;
 
+
+	// ======= FAR CRY FIX =======
+	static constexpr size_t MAX_CLIP_PLANES = 6;
+	float m_storedClipPlanes[MAX_CLIP_PLANES][4];
+	DWORD m_clipPlaneRenderState = 0;
+
+	void ApplyClipPlanes();
 };
