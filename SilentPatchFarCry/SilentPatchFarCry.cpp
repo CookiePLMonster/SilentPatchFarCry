@@ -52,10 +52,59 @@ public:
 	}
 };
 
+
+#if !Is64Bit
+#include <shellapi.h>
+#endif
+void Parse64BitCmdArgument()
+{
+#if !Is64Bit
+	int argc = 0;
+	LPWSTR* argv = CommandLineToArgvW( GetCommandLineW(), &argc );
+
+	for ( ptrdiff_t i = 1; i < argc; i++ )
+	{
+		if ( wcscmp( argv[i], L"-64bit" ) == 0 )
+		{
+			std::wstring applicationName = std::wstring(argv[0]);
+			applicationName.erase( applicationName.find_last_of( L"/\\" ) );
+			applicationName.erase( applicationName.find_last_of( L"/\\" ) + 1 );
+			applicationName.append( L"Bin64\\FarCry.exe" );
+
+			std::wstring commandLine;
+			for ( ptrdiff_t arg = 1; arg < argc; arg++ )
+			{
+				if ( arg != 1 )
+				{
+					commandLine += L' ';
+				}
+				commandLine.append( argv[arg] );
+			}
+
+			STARTUPINFOW si = { sizeof(si) };
+			PROCESS_INFORMATION pi;
+			BOOL result = CreateProcessW( applicationName.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi );
+			if ( result != FALSE )
+			{
+				CloseHandle( pi.hThread );
+				CloseHandle( pi.hProcess );
+				ExitProcess(0);
+			}
+
+			break;
+		}
+	}
+
+	LocalFree( argv );
+#endif
+}
+
 void InitializeASI()
 {
 	using namespace hook;
 	using namespace Memory::VP;
+
+	Parse64BitCmdArgument();
 
 	{
 		const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
