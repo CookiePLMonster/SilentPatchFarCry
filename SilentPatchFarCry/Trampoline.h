@@ -20,13 +20,13 @@ public:
 	{
 		SYSTEM_INFO systemInfo;
 		GetSystemInfo( &systemInfo );
-		m_pageSize = systemInfo.dwPageSize;
+		m_allocSize = systemInfo.dwAllocationGranularity;
 		m_pageMemory = FindAndAllocateMem( preferredBaseAddr );
 	}
 
 	bool FeasibleForAddresss( uintptr_t addr ) const
 	{
-		return IsAddressFeasible( (uintptr_t)m_pageMemory, addr ) && ( m_pageUsed + SINGLE_TRAMPOLINE_SIZE ) <= m_pageSize;
+		return IsAddressFeasible( (uintptr_t)m_pageMemory, addr ) && ( m_sizeUsed + SINGLE_TRAMPOLINE_SIZE ) <= m_allocSize;
 	}
 
 	template<typename Func>
@@ -48,20 +48,20 @@ private:
 
 	LPVOID CreateTrampoline( LPVOID addr )
 	{
-		LPVOID trampolineSpace = GetNewSpace();
+		uint8_t* trampolineSpace = static_cast<uint8_t*>(GetNewSpace());
 
 		// Create trampoline code
 		Memory::Patch( trampolineSpace, { 0x48, 0xB8 } );
-		Memory::Patch( static_cast<uint8_t*>(trampolineSpace) + 2, addr );
-		Memory::Patch( static_cast<uint8_t*>(trampolineSpace) + 10, { 0xFF, 0xE0 } );
+		Memory::Patch( trampolineSpace + 2, addr );
+		Memory::Patch( trampolineSpace + 10, { 0xFF, 0xE0 } );
 
 		return trampolineSpace;
 	}
 
 	LPVOID GetNewSpace()
 	{
-		m_pageUsed += SINGLE_TRAMPOLINE_SIZE;
-		assert( m_pageUsed <= m_pageSize );
+		m_sizeUsed += SINGLE_TRAMPOLINE_SIZE;
+		assert( m_sizeUsed <= m_allocSize );
 
 		LPVOID space = m_pageMemory;
 		m_pageMemory = static_cast<uint8_t*>(m_pageMemory) + SINGLE_TRAMPOLINE_SIZE;
@@ -74,18 +74,21 @@ private:
 		// Find the first unallocated page after 'addr' and try to allocate a page for trampolines there
 		while ( true )
 		{
-			if ( !IsAddressFeasible( curAddr, addr ) ) break;
-
 			MEMORY_BASIC_INFORMATION MemoryInf;
 			if ( VirtualQuery( (LPCVOID)curAddr, &MemoryInf, sizeof(MemoryInf) ) == 0 ) break;
-			if ( MemoryInf.State == MEM_FREE )
+			if ( MemoryInf.State == MEM_FREE && MemoryInf.RegionSize >= m_allocSize )
 			{
-				LPVOID mem = VirtualAlloc( (LPVOID)curAddr, m_pageSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE );
+				// Align up to allocation granularity
+				uintptr_t alignedAddr = uintptr_t(MemoryInf.BaseAddress);
+				alignedAddr = (alignedAddr + m_allocSize - 1) & ~uintptr_t(m_allocSize - 1);
+
+				if ( !IsAddressFeasible( alignedAddr, addr ) ) break;
+
+				LPVOID mem = VirtualAlloc( (LPVOID)alignedAddr, m_allocSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE );
 				if ( mem != nullptr )
 				{
 					return mem;
 				}
-				curAddr += m_pageSize;
 			}
 			curAddr += MemoryInf.RegionSize;
 		}
@@ -98,8 +101,8 @@ private:
 		return diff >= INT32_MIN && diff <= INT32_MAX;
 	}
 
-	DWORD m_pageSize = 0;
-	DWORD m_pageUsed = 0;
+	DWORD m_allocSize = 0;
+	DWORD m_sizeUsed = 0;
 	LPVOID m_pageMemory = nullptr;
 
 #else
