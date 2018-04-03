@@ -52,28 +52,21 @@ public:
 	}
 };
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+void InitializeASI()
 {
-	UNREFERENCED_PARAMETER(hinstDLL);
-	UNREFERENCED_PARAMETER(lpvReserved);
+	using namespace hook;
+	using namespace Memory::VP;
 
-	if ( fdwReason == DLL_PROCESS_ATTACH )
 	{
-		using namespace hook;
-		using namespace Memory::VP;
-
-		{
-			const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
-			Trampoline& trampoline = trampolines.MakeTrampoline( crySystem );
+		const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
+		Trampoline& trampoline = trampolines.MakeTrampoline( crySystem );
 
 #if !Is64Bit
-			void* createRenderDLL = make_module_pattern( crySystem, "6A 01 8D 45 D8" ).get_first( 0x8 );
+		void* createRenderDLL = make_module_pattern( crySystem, "6A 01 8D 45 D8" ).get_first( 0x8 );
 #else
-			void* createRenderDLL = make_module_pattern( crySystem, "48 8D 54 24 ? 41 B0 01 48 8B CB" ).get_first( 0xB );
+		void* createRenderDLL = make_module_pattern( crySystem, "48 8D 54 24 ? 41 B0 01 48 8B CB" ).get_first( 0xB );
 #endif
-			ReadCall( createRenderDLL, CrySystem::orgLoadCryLibrary );
-			InjectHook( createRenderDLL, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
-		}
+		ReadCall( createRenderDLL, CrySystem::orgLoadCryLibrary );
+		InjectHook( createRenderDLL, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
 	}
-	return TRUE;
 }
