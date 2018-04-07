@@ -35,6 +35,7 @@ public:
 		HMODULE module = LoadCryLibrary( name, flag );
 
 		static bool d3d9Hooked = false;
+		static bool gameDllHooked = false;
 		if ( !d3d9Hooked && strcmp( name, "XRenderD3D9.dll" ) == 0 )
 		{
 			// Place a D3D9 hook
@@ -56,6 +57,16 @@ public:
 
 			d3d9Hooked = true;
 		}
+#if Is64Bit
+		else if ( !gameDllHooked && strcmp( name, "CryGame.dll" ) == 0 )
+		{
+			// Skip atexit for this (whatever it is), since it crashes
+			void* crashyAtexit = hook::make_module_pattern( module, "33 F6 8B FE" ).get_first( -0x1C );
+			Memory::VP::Patch<uint8_t>( crashyAtexit, 0xC3 );
+
+			gameDllHooked = true;
+		}
+#endif
 
 		return module;
 	}
@@ -126,6 +137,17 @@ void InitializeASI()
 #endif
 		ReadCall( createRenderDLL, CrySystem::orgLoadCryLibrary );
 		InjectHook( createRenderDLL, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
+
+#if Is64Bit
+		// 64-bit needs to be able to intercept CryGame.dll loading to grab a handle to it (so FreeLibrary does not unload anything and doesn't crash)
+		void* loadGameDLL1 = make_module_pattern( crySystem, "E8 ? ? ? ? 48 85 C0 48 89 86 ? ? ? ? 75 4C" ).get_first( );
+		void* loadGameDLL2 = make_module_pattern( crySystem, "E8 ? ? ? ? 48 89 86 ? ? ? ? EB 17" ).get_first( );
+		void* loadGameDLL3 = make_module_pattern( crySystem, "E8 ? ? ? ? 48 89 86 ? ? ? ? 48 8B 8E" ).get_first( );
+
+		InjectHook( loadGameDLL1, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
+		InjectHook( loadGameDLL2, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
+		InjectHook( loadGameDLL3, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
+#endif
 	}
 
 	{
