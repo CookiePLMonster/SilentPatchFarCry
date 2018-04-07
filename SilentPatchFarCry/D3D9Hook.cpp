@@ -3,6 +3,20 @@
 #include "MemoryMgr.h"
 #include "Trampoline.h"
 
+// ========= Custom VSync hook =========
+const int* r_VSync = nullptr;
+static D3DPRESENT_PARAMETERS* FixupVSyncParameter( D3DPRESENT_PARAMETERS* params )
+{
+	if ( r_VSync != nullptr && params != nullptr )
+	{
+		if ( *r_VSync != 0 && params->PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE )
+		{
+			params->PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+		}
+	}
+	return params;
+}
+
 static IDirect3D9* (WINAPI *orgDirect3DCreate9)(UINT SDKVersion);
 static IDirect3D9* WINAPI FCDirect3DCreate9(UINT SDKVersion)
 {
@@ -119,7 +133,7 @@ HRESULT FCDirect3D9::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFoc
 {
 	IDirect3DDevice9* device = nullptr;
 
-	HRESULT result = m_direct3D9->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &device);
+	HRESULT result = m_direct3D9->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, FixupVSyncParameter(pPresentationParameters), &device);
 	if ( FAILED(result) )
 	{
 		*ppReturnedDeviceInterface = nullptr;
@@ -215,7 +229,7 @@ BOOL FCDirect3DDevice9::ShowCursor(BOOL bShow)
 
 HRESULT FCDirect3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS * pPresentationParameters, IDirect3DSwapChain9 ** pSwapChain)
 {
-	return m_direct3DDevice9->CreateAdditionalSwapChain(pPresentationParameters, pSwapChain);
+	return m_direct3DDevice9->CreateAdditionalSwapChain(FixupVSyncParameter(pPresentationParameters), pSwapChain);
 }
 
 HRESULT FCDirect3DDevice9::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9 ** pSwapChain)
@@ -230,7 +244,7 @@ UINT FCDirect3DDevice9::GetNumberOfSwapChains(void)
 
 HRESULT FCDirect3DDevice9::Reset(D3DPRESENT_PARAMETERS * pPresentationParameters)
 {
-	return m_direct3DDevice9->Reset(pPresentationParameters);
+	return m_direct3DDevice9->Reset(FixupVSyncParameter(pPresentationParameters));
 }
 
 HRESULT FCDirect3DDevice9::Present(const RECT * pSourceRect, const RECT * pDestRect, HWND hDestWindowOverride, const RGNDATA * pDirtyRegion)

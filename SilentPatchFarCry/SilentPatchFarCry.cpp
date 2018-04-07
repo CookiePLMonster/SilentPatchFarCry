@@ -19,6 +19,7 @@
 TrampolineMgr trampolines;
 
 void InstallD3D9Hook( void* func, Trampoline& trampoline );
+extern const int* r_VSync;
 
 class CrySystem
 {
@@ -44,6 +45,14 @@ public:
 #endif
 
 			InstallD3D9Hook( createD3D, trampolines.MakeTrampoline( module ) );
+			
+			// VSync hook
+#if !Is64Bit
+			r_VSync = *hook::make_module_pattern( module, "A1 ? ? ? ? 3B 86 E8 67 01 00" ).get_first<int*>( 0x1 );
+#else
+			uintptr_t addr = reinterpret_cast<uintptr_t>(hook::make_module_pattern( module, "8B 05 ? ? ? ? 41 3B 85 24 76 01 00" ).get_first());
+			r_VSync = reinterpret_cast<int*>( addr + 6 + *reinterpret_cast<int32_t*>(addr+2) );
+#endif
 
 			d3d9Hooked = true;
 		}
