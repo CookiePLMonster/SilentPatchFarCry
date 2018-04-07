@@ -127,4 +127,12 @@ void InitializeASI()
 		ReadCall( createRenderDLL, CrySystem::orgLoadCryLibrary );
 		InjectHook( createRenderDLL, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
 	}
+
+	{
+		// Fixed crash when scrolling mouse wheel on loading screen (32-bit only? 1.4 only?)
+#if !Is64Bit
+		void* jump = get_pattern( "2D 06 01 00 00", 5 );
+		Nop( jump, 2 );
+#endif
+	}
 }
