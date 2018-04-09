@@ -354,13 +354,14 @@ HRESULT FCDirect3DDevice9::SetClipStatus(CONST D3DCLIPSTATUS9 *pClipStatus)
 
 HRESULT FCDirect3DDevice9::SetRenderState(D3DRENDERSTATETYPE State, DWORD Value)
 {
+	const HRESULT result = m_direct3DDevice9->SetRenderState(State, Value);
+
 	// ======= FAR CRY FIX =======
-	if ( State == D3DRS_CLIPPLANEENABLE )
+	if ( State == D3DRS_CLIPPLANEENABLE && result == D3D_OK )
 	{
 		m_clipPlaneRenderState = Value;
 	}
-
-	return m_direct3DDevice9->SetRenderState(State, Value);
+	return result;
 }
 
 HRESULT FCDirect3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9* pRenderTarget)
