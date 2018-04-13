@@ -119,8 +119,11 @@ void Parse64BitCmdArgument()
 #endif
 }
 
+static LONG InitCount = 0;
 void InitializeASI()
 {
+	if ( _InterlockedCompareExchange( &InitCount, 1, 0 ) != 0 ) return;
+
 	using namespace hook;
 	using namespace Memory::VP;
 
