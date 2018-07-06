@@ -52,7 +52,7 @@ public:
 			r_VSync = *hook::make_module_pattern( module, "A1 ? ? ? ? 3B 86 E8 67 01 00" ).get_first<int*>( 0x1 );
 #else
 			uintptr_t addr = reinterpret_cast<uintptr_t>(hook::make_module_pattern( module, "8B 05 ? ? ? ? 41 3B 85 24 76 01 00" ).get_first());
-			r_VSync = reinterpret_cast<int*>( addr + 6 + *reinterpret_cast<int32_t*>(addr+2) );
+			Memory::ReadOffsetValue( addr + 2, r_VSync );
 #endif
 
 			d3d9Hooked = true;
@@ -119,18 +119,12 @@ void Parse64BitCmdArgument()
 #endif
 }
 
-static LONG InitCount = 0;
-void InitializeASI()
+void InjectCrySystemPatches( HMODULE crySystem )
 {
-	if ( _InterlockedCompareExchange( &InitCount, 1, 0 ) != 0 ) return;
-
 	using namespace hook;
 	using namespace Memory::VP;
 
-	Parse64BitCmdArgument();
-
 	{
-		const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
 		Trampoline& trampoline = trampolines.MakeTrampoline( crySystem );
 
 #if !Is64Bit
@@ -152,6 +146,49 @@ void InitializeASI()
 		InjectHook( loadGameDLL3, trampoline.Jump(&CrySystem::LoadCryLibrary_Hooked) );
 #endif
 	}
+}
+
+static FARPROC (WINAPI **orgGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
+FARPROC WINAPI GetProcAddress_CrySystemInject(HMODULE hModule, LPCSTR lpProcName)
+{
+	const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
+	if ( crySystem != nullptr )
+	{
+		InjectCrySystemPatches( crySystem );
+	}
+
+	return (*orgGetProcAddress)(hModule, lpProcName);
+}
+static auto* const pGetProcAddress_CrySystemInject = &GetProcAddress_CrySystemInject;
+
+void InjectFarCryExePatches()
+{
+	using namespace hook;
+	using namespace Memory::VP;
+
+	const HMODULE crySystem = GetModuleHandleW( L"CrySystem" );
+	if ( crySystem != nullptr )
+	{
+		// We are loaded late enough, just patch
+		InjectCrySystemPatches( crySystem );
+	}
+	else
+	{
+		// Too early, patch into the place we SHOULD have been loaded from
+#if !Is64Bit
+		auto getProcAddress = pattern( "50 FF 15 ? ? ? ? 8B 0D" ).count_hint(1);
+		if ( getProcAddress.size() == 1 )
+		{
+			auto addr = getProcAddress.get(0).get<decltype(GetProcAddress)**>( 1 + 2 );
+
+			orgGetProcAddress = *addr;
+			Patch( addr, &pGetProcAddress_CrySystemInject );
+
+		}
+#else
+
+#endif
+	}
 
 	{
 		// Fixed crash when scrolling mouse wheel on loading screen (32-bit only? 1.4 only?)
@@ -159,5 +196,22 @@ void InitializeASI()
 		void* jump = get_pattern( "2D 06 01 00 00", 5 );
 		Nop( jump, 2 );
 #endif
+	}
+}
+
+void InitASI()
+{
+	Parse64BitCmdArgument();
+
+	InjectFarCryExePatches();
+}
+
+extern "C"
+{
+	static LONG InitCount = 0;
+	__declspec(dllexport) void InitializeASI()
+	{
+		if ( _InterlockedCompareExchange( &InitCount, 1, 0 ) != 0 ) return;
+		InitASI();
 	}
 }
