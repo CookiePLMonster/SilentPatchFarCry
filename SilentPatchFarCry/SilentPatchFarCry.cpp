@@ -80,42 +80,43 @@ void Parse64BitCmdArgument()
 {
 #if !Is64Bit
 	int argc = 0;
-	LPWSTR* argv = CommandLineToArgvW( GetCommandLineW(), &argc );
-
-	for ( ptrdiff_t i = 1; i < argc; i++ )
+	if ( LPWSTR* argv = CommandLineToArgvW( GetCommandLineW(), &argc ) )
 	{
-		if ( wcscmp( argv[i], L"-64bit" ) == 0 )
+		for ( ptrdiff_t i = 1; i < argc; i++ )
 		{
-			std::wstring applicationName = std::wstring(argv[0]);
-			applicationName.erase( applicationName.find_last_of( L"/\\" ) );
-			applicationName.erase( applicationName.find_last_of( L"/\\" ) + 1 );
-			applicationName.append( L"Bin64\\FarCry.exe" );
-
-			std::wstring commandLine;
-			for ( ptrdiff_t arg = 1; arg < argc; arg++ )
+			if ( wcscmp( argv[i], L"-64bit" ) == 0 )
 			{
-				if ( arg != 1 )
+				std::wstring applicationName = std::wstring(argv[0]);
+				applicationName.erase( applicationName.find_last_of( L"/\\" ) );
+				applicationName.erase( applicationName.find_last_of( L"/\\" ) + 1 );
+				applicationName.append( L"Bin64\\FarCry.exe" );
+
+				std::wstring commandLine;
+				for ( ptrdiff_t arg = 1; arg < argc; arg++ )
 				{
-					commandLine += L' ';
+					if ( arg != 1 )
+					{
+						commandLine += L' ';
+					}
+					commandLine.append( argv[arg] );
 				}
-				commandLine.append( argv[arg] );
-			}
 
-			STARTUPINFOW si = { sizeof(si) };
-			PROCESS_INFORMATION pi;
-			BOOL result = CreateProcessW( applicationName.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi );
-			if ( result != FALSE )
-			{
-				CloseHandle( pi.hThread );
-				CloseHandle( pi.hProcess );
-				ExitProcess(0);
-			}
+				STARTUPINFOW si = { sizeof(si) };
+				PROCESS_INFORMATION pi;
+				BOOL result = CreateProcessW( applicationName.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi );
+				if ( result != FALSE )
+				{
+					CloseHandle( pi.hThread );
+					CloseHandle( pi.hProcess );
+					ExitProcess(0);
+				}
 
-			break;
+				break;
+			}
 		}
-	}
 
-	LocalFree( argv );
+		LocalFree( argv );
+	}
 #endif
 }
 
@@ -193,8 +194,11 @@ void InjectFarCryExePatches()
 	{
 		// Fixed crash when scrolling mouse wheel on loading screen (32-bit only? 1.4 only?)
 #if !Is64Bit
-		void* jump = get_pattern( "2D 06 01 00 00", 5 );
-		Nop( jump, 2 );
+		auto jump = pattern( "2D 06 01 00 00" ).count_hint(1);
+		if ( jump.size() == 1 )
+		{
+			Nop( jump.get(0).get<void>( 5 ), 2 );
+		}
 #endif
 	}
 }
