@@ -75,6 +75,7 @@ public:
 
 #if !Is64Bit
 #include <shellapi.h>
+#include <algorithm>
 #endif
 void Parse64BitCmdArgument()
 {
@@ -87,28 +88,34 @@ void Parse64BitCmdArgument()
 			if ( wcscmp( argv[i], L"-64bit" ) == 0 )
 			{
 				std::wstring applicationName = std::wstring(argv[0]);
-				applicationName.erase( applicationName.find_last_of( L"/\\" ) );
-				applicationName.erase( applicationName.find_last_of( L"/\\" ) + 1 );
-				applicationName.append( L"Bin64\\FarCry.exe" );
+				std::transform( applicationName.begin(), applicationName.end(), applicationName.begin(), []( auto ch ) { return ::towlower( ch ); } );
 
-				std::wstring commandLine;
-				for ( ptrdiff_t arg = 1; arg < argc; arg++ )
+				auto bin32Pos = applicationName.rfind( L"\\bin32\\" );
+				if ( bin32Pos != std::string::npos )
 				{
-					if ( arg != 1 )
+					// Replace 32 with 64
+					applicationName[ bin32Pos + 4 ] = '6';
+					applicationName[ bin32Pos + 5 ] = '4';
+
+					std::wstring commandLine;
+					for ( ptrdiff_t arg = 1; arg < argc; arg++ )
 					{
-						commandLine += L' ';
+						if ( arg != 1 )
+						{
+							commandLine += L' ';
+						}
+						commandLine.append( argv[arg] );
 					}
-					commandLine.append( argv[arg] );
-				}
 
-				STARTUPINFOW si = { sizeof(si) };
-				PROCESS_INFORMATION pi;
-				BOOL result = CreateProcessW( applicationName.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi );
-				if ( result != FALSE )
-				{
-					CloseHandle( pi.hThread );
-					CloseHandle( pi.hProcess );
-					ExitProcess(0);
+					STARTUPINFOW si = { sizeof(si) };
+					PROCESS_INFORMATION pi;
+					BOOL result = CreateProcessW( applicationName.c_str(), commandLine.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi );
+					if ( result != FALSE )
+					{
+						CloseHandle( pi.hThread );
+						CloseHandle( pi.hProcess );
+						ExitProcess(0);
+					}
 				}
 
 				break;
