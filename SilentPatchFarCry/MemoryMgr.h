@@ -64,18 +64,40 @@ namespace Memory
 	} while ( --count != 0 ); }
 #endif
 
-	template<typename AT, typename Func>
-	inline void		InjectHook(AT address, Func hook)
+	template<typename Var, typename AT>
+	inline void		WriteOffsetValue(AT address, Var var)
 	{
 		union member_cast
 		{
 			intptr_t addr;
-			Func funcPtr;
+			Var varPtr;
 		} cast;
-		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
-		cast.funcPtr = hook;
+		static_assert( sizeof(cast.addr) == sizeof(cast.varPtr), "member_cast failure!" );
+		cast.varPtr = var;
 
-		*(int32_t*)((intptr_t)address + 1) = static_cast<int32_t>(cast.addr - (intptr_t)address - 5);
+		intptr_t dstAddr = (intptr_t)address;
+		*(int32_t*)dstAddr = static_cast<int32_t>(cast.addr - dstAddr - 4);
+	}
+
+	template<typename Var, typename AT>
+	inline void		ReadOffsetValue(AT address, Var& var)
+	{
+		union member_cast
+		{
+			intptr_t addr;
+			Var varPtr;
+		} cast;
+		static_assert( sizeof(cast.addr) == sizeof(cast.varPtr), "member_cast failure!" );
+
+		intptr_t srcAddr = (intptr_t)address;
+		cast.addr = srcAddr + 4 + *(int32_t*)srcAddr;
+		var = cast.varPtr;
+	}
+
+	template<typename AT, typename Func>
+	inline void		InjectHook(AT address, Func hook)
+	{
+		WriteOffsetValue( (intptr_t)address + 1, hook );
 	}
 
 	template<typename AT, typename Func>
@@ -88,15 +110,7 @@ namespace Memory
 	template<typename Func, typename AT>
 	inline void		ReadCall(AT address, Func& func)
 	{
-		union member_cast
-		{
-			intptr_t addr;
-			Func funcPtr;
-		} cast;
-		static_assert( sizeof(cast.addr) == sizeof(cast.funcPtr), "member_cast failure!" );
-
-		cast.addr = (intptr_t)address + 5 + *(int32_t*)((intptr_t)address+1);
-		func = cast.funcPtr;
+		ReadOffsetValue( (intptr_t)address+1, func );
 	}
 
 	template<typename AT>
