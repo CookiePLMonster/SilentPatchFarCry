@@ -1,7 +1,7 @@
 #include "D3D9Hook.h"
 
-#include "MemoryMgr.h"
-#include "Trampoline.h"
+#include "Utils/MemoryMgr.h"
+#include "Utils/Trampoline.h"
 
 // ========= Custom VSync hook =========
 const int* r_VSync = nullptr;

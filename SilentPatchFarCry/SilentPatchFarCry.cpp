@@ -6,9 +6,9 @@
 
 #include <windows.h>
 
-#include "Patterns.h"
-#include "MemoryMgr.h"
-#include "Trampoline.h"
+#include "Utils/Patterns.h"
+#include "Utils/MemoryMgr.h"
+#include "Utils/Trampoline.h"
 
 #ifdef _WIN64
 #define Is64Bit 1

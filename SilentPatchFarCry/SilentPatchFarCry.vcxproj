@@ -172,14 +172,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="D3D9Hook.cpp" />
-    <ClCompile Include="Patterns.cpp" />
     <ClCompile Include="SilentPatchFarCry.cpp" />
+    <ClCompile Include="Utils\Patterns.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="D3D9Hook.h" />
-    <ClInclude Include="MemoryMgr.h" />
-    <ClInclude Include="Patterns.h" />
-    <ClInclude Include="Trampoline.h" />
+    <ClInclude Include="Utils\MemoryMgr.h" />
+    <ClInclude Include="Utils\Patterns.h" />
+    <ClInclude Include="Utils\Trampoline.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SilentPatch.rc" />

@@ -1,0 +1,3 @@
+[submodule "SilentPatchFarCry/Utils"]
+	path = SilentPatchFarCry/Utils
+	url = https://github.com/CookiePLMonster/ModUtils.git
